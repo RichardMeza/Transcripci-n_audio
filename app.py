@@ -40,12 +40,10 @@ modelo_whisper = cargar_modelo_whisper()
 # --------------------------------------------------
 @st.cache_resource
 def cargar_resumidor():
-
     resumidor = pipeline(
         "summarization",
         model="facebook/bart-large-cnn"
     )
-
     return resumidor
 
 # --------------------------------------------------
