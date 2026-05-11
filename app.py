@@ -41,7 +41,7 @@ modelo_whisper = cargar_modelo_whisper()
 @st.cache_resource
 def cargar_resumidor():
     resumidor = pipeline(
-        "summarization",
+        "text-generation",
         model="csebuetnlp/mT5_multilingual_XLSum"
     )
     return resumidor
