@@ -82,28 +82,35 @@ def resumir_texto_largo(texto):
     for bloque in bloques:
 
         # PROMPT PARA EL MODELO
-        prompt = f"Resume el siguiente texto en español:\n\n{bloque}"
+    prompt = f"""
+    Genera un resumen corto y claro en español del siguiente texto:
 
-        try:
+    Texto:
+    {bloque}
 
-            salida = resumidor(
-                prompt,
-                max_new_tokens=120,
-                do_sample=False
-            )
+    Resumen:
+    """
 
-            resumen = salida[0]["generated_text"]
+    try:
 
-            # Limpiar prompt repetido
-            resumen = resumen.replace(prompt, "").strip()
+        salida = resumidor(
+            prompt,
+            max_new_tokens=120,
+            do_sample=False
+        )
 
-            resumenes.append(resumen)
+        resumen = salida[0]["generated_text"].strip()
 
-        except Exception as e:
+        if "Resumen:" in resumen:
+            resumen = resumen.split("Resumen:")[-1].strip()
 
-            resumenes.append(
-                f"Error al resumir bloque: {str(e)}"
-            )
+        resumenes.append(resumen)
+
+    except Exception as e:
+
+        resumenes.append(
+            f"Error al resumir bloque: {str(e)}"
+        )
 
     resumen_final = " ".join(resumenes)
 
