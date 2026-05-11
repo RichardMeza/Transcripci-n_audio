@@ -2,6 +2,6 @@ streamlit
 openai-whisper
 torch
 imageio-ffmpeg
-transformers==4.41.2
+transformers
 sentencepiece
 protobuf
