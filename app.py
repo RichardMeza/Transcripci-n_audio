@@ -11,7 +11,7 @@ from transformers import pipeline
 os.environ["PATH"] += os.pathsep + os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe())
 
 # --------------------------------------------------
-# Configuración de la página
+# Configuración de página
 # --------------------------------------------------
 st.set_page_config(
     page_title="Transcriptor y Resumidor de Clases",
@@ -20,84 +20,89 @@ st.set_page_config(
 )
 
 st.title("Transcriptor y Resumidor de Clases con IA")
+
 st.write(
     "Sube un audio o video en español. El sistema lo transcribirá con Whisper "
-    "y luego generará un resumen automático usando Transformers."
+    "y generará un resumen automático usando Transformers."
 )
 
 # --------------------------------------------------
-# Cargar modelo Whisper
+# Cargar Whisper
 # --------------------------------------------------
 @st.cache_resource
 def cargar_modelo_whisper():
-    modelo = whisper.load_model("small")
-    return modelo
+    return whisper.load_model("small")
 
 modelo_whisper = cargar_modelo_whisper()
 
 # --------------------------------------------------
-# Cargar modelo de resumen
+# Cargar modelo generativo para resumen
 # --------------------------------------------------
 @st.cache_resource
 def cargar_resumidor():
-    resumidor = pipeline(
+    return pipeline(
         "text-generation",
         model="csebuetnlp/mT5_multilingual_XLSum"
     )
-    return resumidor
-    
-# --------------------------------------------------
-# Función para dividir texto
-# --------------------------------------------------
-def dividir_texto(texto, max_palabras=250):
 
+resumidor = cargar_resumidor()
+
+# --------------------------------------------------
+# Dividir texto largo
+# --------------------------------------------------
+def dividir_texto(texto, max_palabras=180):
     palabras = texto.split()
     bloques = []
 
     for i in range(0, len(palabras), max_palabras):
-
-        bloque = " ".join(
-            palabras[i:i + max_palabras]
-        )
-
+        bloque = " ".join(palabras[i:i + max_palabras])
         bloques.append(bloque)
 
     return bloques
 
-
 # --------------------------------------------------
-# Función para resumir texto largo
+# Resumir texto
 # --------------------------------------------------
 def resumir_texto_largo(texto):
-
     palabras = texto.split()
 
     if len(palabras) < 40:
         return "El texto es demasiado corto para generar un resumen automático."
 
-    bloques = dividir_texto(texto, max_palabras=250)
+    bloques = dividir_texto(texto, max_palabras=180)
     resumenes = []
 
     for bloque in bloques:
-
-        prompt = "resume en español: " + bloque
+        prompt = (
+            "Resume el siguiente texto en español de manera breve y clara:\n\n"
+            f"{bloque}\n\nResumen:"
+        )
 
         try:
             salida = resumidor(
                 prompt,
                 max_new_tokens=120,
-                do_sample=False
+                do_sample=False,
+                num_return_sequences=1
             )
 
             resumen = salida[0]["generated_text"]
+
+            # Quitar el prompt si el modelo lo repite
             resumen = resumen.replace(prompt, "").strip()
+
+            if resumen == "":
+                resumen = "No se pudo generar resumen para este bloque."
 
             resumenes.append(resumen)
 
         except Exception as e:
-            resumenes.append("Error al resumir un bloque.")
+            resumenes.append(f"Error al resumir bloque: {str(e)}")
 
-    return " ".join(resumenes)
+    resumen_final = " ".join(resumenes)
+
+    return resumen_final
+
 # --------------------------------------------------
 # Subida de archivo
 # --------------------------------------------------
@@ -109,9 +114,13 @@ archivo = st.file_uploader(
 if archivo is not None:
 
     st.subheader("Archivo cargado")
-    st.audio(archivo)
 
-    extension = archivo.name.split(".")[-1]
+    extension = archivo.name.split(".")[-1].lower()
+
+    if extension == "mp4":
+        st.video(archivo)
+    else:
+        st.audio(archivo)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{extension}") as tmp:
         tmp.write(archivo.read())
@@ -124,7 +133,6 @@ if archivo is not None:
                 ruta_archivo,
                 language="es"
             )
-
             texto = resultado["text"]
 
         st.subheader("Transcripción")
