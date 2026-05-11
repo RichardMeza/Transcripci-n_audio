@@ -7,6 +7,7 @@ import streamlit as st
 import whisper
 import tempfile
 import imageio_ffmpeg
+from transformers import MarianMTModel, MarianTokenizer
 
 # --------------------------------------------------
 # Configuración FFmpeg
@@ -22,17 +23,18 @@ os.environ["PATH"] += (
 # Configuración página
 # --------------------------------------------------
 st.set_page_config(
-    page_title="Transcriptor y Resumidor IA",
+    page_title="Transcriptor, Resumidor y Traductor IA",
     page_icon="🎙️",
     layout="centered"
 )
 
-st.title("Transcriptor y Resumidor de Clases con IA")
+st.title("Transcriptor, Resumidor y Traductor de Clases con IA")
 
 st.write(
     "Sube un audio o video en español. "
-    "El sistema transcribirá el contenido "
-    "y luego generará un resumen automático."
+    "El sistema transcribirá el contenido, "
+    "generará un resumen automático y traducirá "
+    "el resumen al inglés."
 )
 
 # --------------------------------------------------
@@ -40,20 +42,38 @@ st.write(
 # --------------------------------------------------
 @st.cache_resource
 def cargar_whisper():
-
     modelo = whisper.load_model("small")
-
     return modelo
 
 
 modelo_whisper = cargar_whisper()
 
 # --------------------------------------------------
+# Cargar traductor español-inglés
+# --------------------------------------------------
+@st.cache_resource
+def cargar_traductor():
+
+    modelo_traduccion = "Helsinki-NLP/opus-mt-es-en"
+
+    tokenizer_trad = MarianTokenizer.from_pretrained(
+        modelo_traduccion
+    )
+
+    modelo_trad = MarianMTModel.from_pretrained(
+        modelo_traduccion
+    )
+
+    return tokenizer_trad, modelo_trad
+
+
+tokenizer_trad, modelo_trad = cargar_traductor()
+
+# --------------------------------------------------
 # Función resumen extractivo
 # --------------------------------------------------
 def resumir_texto_largo(texto):
 
-    # Separar oraciones
     oraciones = (
         texto
         .replace("?", ".")
@@ -61,7 +81,6 @@ def resumir_texto_largo(texto):
         .split(".")
     )
 
-    # Filtrar oraciones muy cortas
     oraciones = [
         o.strip()
         for o in oraciones
@@ -69,13 +88,11 @@ def resumir_texto_largo(texto):
     ]
 
     if len(oraciones) == 0:
-
         return (
             "El texto es demasiado corto "
             "para generar un resumen."
         )
 
-    # Palabras importantes
     palabras_clave = [
         "importante",
         "objetivo",
@@ -98,20 +115,15 @@ def resumir_texto_largo(texto):
 
     puntajes = []
 
-    # Puntuar oraciones
     for oracion in oraciones:
 
         score = 0
-
         texto_oracion = oracion.lower()
 
         for palabra in palabras_clave:
-
             if palabra in texto_oracion:
-
                 score += 1
 
-        # Bonus por longitud moderada
         score += min(
             len(oracion.split()) / 20,
             2
@@ -121,7 +133,6 @@ def resumir_texto_largo(texto):
             (score, oracion)
         )
 
-    # Seleccionar mejores oraciones
     mejores = sorted(
         puntajes,
         key=lambda x: x[0],
@@ -135,6 +146,31 @@ def resumir_texto_largo(texto):
     )
 
     return resumen
+
+# --------------------------------------------------
+# Función traducción resumen a inglés
+# --------------------------------------------------
+def traducir_resumen_ingles(texto):
+
+    inputs = tokenizer_trad(
+        texto,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=512
+    )
+
+    salida = modelo_trad.generate(
+        **inputs,
+        max_length=512
+    )
+
+    traduccion = tokenizer_trad.decode(
+        salida[0],
+        skip_special_tokens=True
+    )
+
+    return traduccion
 
 # --------------------------------------------------
 # Subida de archivo
@@ -164,27 +200,20 @@ if archivo is not None:
         .lower()
     )
 
-    # Mostrar audio o video
     if extension == "mp4":
-
         st.video(archivo)
-
     else:
-
         st.audio(archivo)
 
-    # Guardar temporalmente
     with tempfile.NamedTemporaryFile(
         delete=False,
         suffix=f".{extension}"
     ) as tmp:
 
         tmp.write(archivo.read())
-
         ruta_archivo = tmp.name
 
-    # Botón principal
-    if st.button("Transcribir y resumir"):
+    if st.button("Transcribir, resumir y traducir"):
 
         # ------------------------------------------
         # Transcripción
@@ -224,9 +253,7 @@ if archivo is not None:
                 resumir_texto_largo(texto)
             )
 
-        st.subheader(
-            "Resumen automático"
-        )
+        st.subheader("Resumen automático")
 
         st.write(resumen)
 
@@ -237,9 +264,30 @@ if archivo is not None:
             mime="text/plain"
         )
 
+        # ------------------------------------------
+        # Traducción del resumen
+        # ------------------------------------------
+        with st.spinner(
+            "Traduciendo resumen al inglés..."
+        ):
+
+            resumen_ingles = (
+                traducir_resumen_ingles(resumen)
+            )
+
+        st.subheader("Summary in English")
+
+        st.write(resumen_ingles)
+
+        st.download_button(
+            label="Descargar resumen en inglés",
+            data=resumen_ingles,
+            file_name="summary_english.txt",
+            mime="text/plain"
+        )
+
     # --------------------------------------------------
     # Eliminar archivo temporal
     # --------------------------------------------------
     if os.path.exists(ruta_archivo):
-
         os.remove(ruta_archivo)
