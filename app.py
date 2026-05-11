@@ -40,45 +40,80 @@ modelo_whisper = cargar_modelo_whisper()
 # --------------------------------------------------
 @st.cache_resource
 def cargar_resumidor():
+
     resumidor = pipeline(
         "summarization",
-        model="facebook/bart-large-cnn"
+        model="sshleifer/distilbart-cnn-12-6"
     )
+
     return resumidor
 
+
+resumidor = cargar_resumidor()
+
 # --------------------------------------------------
-# Función para resumir texto largo por bloques
+# Función para dividir texto
 # --------------------------------------------------
-def dividir_texto(texto, max_palabras=350):
+def dividir_texto(texto, max_palabras=250):
+
     palabras = texto.split()
     bloques = []
 
     for i in range(0, len(palabras), max_palabras):
-        bloque = " ".join(palabras[i:i + max_palabras])
+
+        bloque = " ".join(
+            palabras[i:i + max_palabras]
+        )
+
         bloques.append(bloque)
 
     return bloques
 
 
+# --------------------------------------------------
+# Función para resumir texto largo
+# --------------------------------------------------
 def resumir_texto_largo(texto):
-    bloques = dividir_texto(texto, max_palabras=350)
+
+    palabras = texto.split()
+
+    # Si el texto es corto
+    if len(palabras) < 40:
+
+        return (
+            "El texto es demasiado corto para "
+            "generar un resumen automático."
+        )
+
+    bloques = dividir_texto(
+        texto,
+        max_palabras=250
+    )
+
     resumenes = []
 
     for bloque in bloques:
-        if len(bloque.split()) >= 40:
+
+        try:
+
             resumen = resumidor(
                 bloque,
-                max_length=120,
-                min_length=30,
+                max_length=80,
+                min_length=20,
                 do_sample=False
             )[0]["summary_text"]
 
             resumenes.append(resumen)
 
+        except Exception as e:
+
+            resumenes.append(
+                "Error al resumir un bloque."
+            )
+
     resumen_final = " ".join(resumenes)
 
     return resumen_final
-
 # --------------------------------------------------
 # Subida de archivo
 # --------------------------------------------------
