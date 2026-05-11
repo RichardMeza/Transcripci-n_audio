@@ -4,4 +4,5 @@ torch
 imageio-ffmpeg
 transformers
 sentencepiece
+sacremoses
 protobuf
