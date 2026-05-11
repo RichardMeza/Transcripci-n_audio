@@ -110,7 +110,7 @@ def resumir_texto_largo(texto):
         "aplicación", "herramientas", "modelo", "datos",
         "análisis", "machine learning", "python", "r",
         "procesamiento", "lenguaje natural", "predictivo",
-        "descriptivo", "prescriptivo"
+        "descriptivo", "prescriptivo", "ciencia de datos"
     ]
 
     puntajes = []
