@@ -1,7 +1,7 @@
-streamlit==1.37.1
+streamlit
 openai-whisper
-torch==2.3.1
+torch
 imageio-ffmpeg
-transformers==4.41.2
+transformers
 sentencepiece
 protobuf
