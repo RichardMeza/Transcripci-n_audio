@@ -42,10 +42,13 @@ modelo_whisper = cargar_modelo_whisper()
 # --------------------------------------------------
 @st.cache_resource
 def cargar_resumidor():
-    return pipeline(
+
+    resumidor = pipeline(
         "text-generation",
-        model="csebuetnlp/mT5_multilingual_XLSum"
+        model="google/flan-t5-base"
     )
+
+    return resumidor
 
 resumidor = cargar_resumidor()
 
@@ -66,40 +69,41 @@ def dividir_texto(texto, max_palabras=180):
 # Resumir texto
 # --------------------------------------------------
 def resumir_texto_largo(texto):
+
     palabras = texto.split()
 
     if len(palabras) < 40:
-        return "El texto es demasiado corto para generar un resumen automático."
+        return "El texto es demasiado corto para resumir."
 
     bloques = dividir_texto(texto, max_palabras=180)
+
     resumenes = []
 
     for bloque in bloques:
-        prompt = (
-            "Resume el siguiente texto en español de manera breve y clara:\n\n"
-            f"{bloque}\n\nResumen:"
-        )
+
+        # PROMPT PARA EL MODELO
+        prompt = f"Resume el siguiente texto en español:\n\n{bloque}"
 
         try:
+
             salida = resumidor(
                 prompt,
                 max_new_tokens=120,
-                do_sample=False,
-                num_return_sequences=1
+                do_sample=False
             )
 
             resumen = salida[0]["generated_text"]
 
-            # Quitar el prompt si el modelo lo repite
+            # Limpiar prompt repetido
             resumen = resumen.replace(prompt, "").strip()
-
-            if resumen == "":
-                resumen = "No se pudo generar resumen para este bloque."
 
             resumenes.append(resumen)
 
         except Exception as e:
-            resumenes.append(f"Error al resumir bloque: {str(e)}")
+
+            resumenes.append(
+                f"Error al resumir bloque: {str(e)}"
+            )
 
     resumen_final = " ".join(resumenes)
 
