@@ -40,13 +40,13 @@ modelo_whisper = cargar_modelo_whisper()
 # --------------------------------------------------
 @st.cache_resource
 def cargar_resumidor():
+
     resumidor = pipeline(
         "summarization",
-        model="csebuetnlp/mT5_multilingual_XLSum"
+        model="facebook/bart-large-cnn"
     )
-    return resumidor
 
-resumidor = cargar_resumidor()
+    return resumidor
 
 # --------------------------------------------------
 # Función para resumir texto largo por bloques
