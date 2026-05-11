@@ -94,72 +94,48 @@ def dividir_texto(texto, max_palabras=180):
 # --------------------------------------------------
 def resumir_texto_largo(texto):
 
-    palabras = texto.split()
+    oraciones = texto.replace("?", ".").replace("¿", "").split(".")
 
-    if len(palabras) < 40:
+    oraciones = [
+        o.strip()
+        for o in oraciones
+        if len(o.strip().split()) > 6
+    ]
 
-        return (
-            "El texto es demasiado corto "
-            "para generar un resumen."
-        )
+    if len(oraciones) == 0:
+        return "El texto es demasiado corto para generar un resumen."
 
-    bloques = dividir_texto(
-        texto,
-        max_palabras=180
-    )
+    palabras_clave = [
+        "importante", "objetivo", "concepto", "ejemplo",
+        "aplicación", "herramientas", "modelo", "datos",
+        "análisis", "machine learning", "python", "r",
+        "procesamiento", "lenguaje natural", "predictivo",
+        "descriptivo", "prescriptivo"
+    ]
 
-    resumenes = []
+    puntajes = []
 
-    for bloque in bloques:
+    for oracion in oraciones:
+        score = 0
+        texto_oracion = oracion.lower()
 
-        prompt = f"""
-Genera un resumen corto y claro en español del siguiente texto.
+        for palabra in palabras_clave:
+            if palabra in texto_oracion:
+                score += 1
 
-Texto:
-{bloque}
+        score += min(len(oracion.split()) / 20, 2)
 
-Resumen:
-"""
+        puntajes.append((score, oracion))
 
-        try:
+    mejores = sorted(
+        puntajes,
+        key=lambda x: x[0],
+        reverse=True
+    )[:3]
 
-            salida = resumidor(
-                prompt,
-                max_new_tokens=120,
-                do_sample=False
-            )
+    resumen = ". ".join([o for _, o in mejores]) + "."
 
-            resumen = (
-                salida[0]["generated_text"]
-                .strip()
-            )
-
-            if "Resumen:" in resumen:
-
-                resumen = (
-                    resumen
-                    .split("Resumen:")[-1]
-                    .strip()
-                )
-
-            if resumen == "":
-
-                resumen = (
-                    "No se pudo generar "
-                    "resumen."
-                )
-
-            resumenes.append(resumen)
-
-        except Exception as e:
-
-            resumenes.append(
-                f"Error: {str(e)}"
-            )
-
-    resumen_final = " ".join(resumenes)
-
-    return resumen_final
+    return resumen
 
 # --------------------------------------------------
 # Subir archivo
