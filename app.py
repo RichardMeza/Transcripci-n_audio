@@ -1,7 +1,9 @@
+import os
+os.environ["TRANSFORMERS_NO_TORCHVISION"] = "1"
+
 import streamlit as st
 import whisper
 import tempfile
-import os
 import imageio_ffmpeg
 from transformers import pipeline
 
