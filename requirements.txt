@@ -2,3 +2,5 @@ streamlit
 openai-whisper
 torch
 imageio-ffmpeg
+transformers
+sentencepiece
