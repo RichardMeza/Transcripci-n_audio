@@ -40,17 +40,12 @@ modelo_whisper = cargar_modelo_whisper()
 # --------------------------------------------------
 @st.cache_resource
 def cargar_resumidor():
-
     resumidor = pipeline(
-        "summarization",
-        model="sshleifer/distilbart-cnn-12-6"
+        "text-generation",
+        model="csebuetnlp/mT5_multilingual_XLSum"
     )
-
     return resumidor
-
-
-resumidor = cargar_resumidor()
-
+    
 # --------------------------------------------------
 # Función para dividir texto
 # --------------------------------------------------
@@ -77,43 +72,32 @@ def resumir_texto_largo(texto):
 
     palabras = texto.split()
 
-    # Si el texto es corto
     if len(palabras) < 40:
+        return "El texto es demasiado corto para generar un resumen automático."
 
-        return (
-            "El texto es demasiado corto para "
-            "generar un resumen automático."
-        )
-
-    bloques = dividir_texto(
-        texto,
-        max_palabras=250
-    )
-
+    bloques = dividir_texto(texto, max_palabras=250)
     resumenes = []
 
     for bloque in bloques:
 
-        try:
+        prompt = "resume en español: " + bloque
 
-            resumen = resumidor(
-                bloque,
-                max_length=80,
-                min_length=20,
+        try:
+            salida = resumidor(
+                prompt,
+                max_new_tokens=120,
                 do_sample=False
-            )[0]["summary_text"]
+            )
+
+            resumen = salida[0]["generated_text"]
+            resumen = resumen.replace(prompt, "").strip()
 
             resumenes.append(resumen)
 
         except Exception as e:
+            resumenes.append("Error al resumir un bloque.")
 
-            resumenes.append(
-                "Error al resumir un bloque."
-            )
-
-    resumen_final = " ".join(resumenes)
-
-    return resumen_final
+    return " ".join(resumenes)
 # --------------------------------------------------
 # Subida de archivo
 # --------------------------------------------------
