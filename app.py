@@ -8,8 +8,6 @@ import whisper
 import tempfile
 import imageio_ffmpeg
 
-from transformers import pipeline
-
 # --------------------------------------------------
 # Configuración FFmpeg
 # --------------------------------------------------
@@ -38,7 +36,7 @@ st.write(
 )
 
 # --------------------------------------------------
-# Cargar Whisper
+# Cargar modelo Whisper
 # --------------------------------------------------
 @st.cache_resource
 def cargar_whisper():
@@ -51,51 +49,19 @@ def cargar_whisper():
 modelo_whisper = cargar_whisper()
 
 # --------------------------------------------------
-# Cargar modelo resumen
-# --------------------------------------------------
-@st.cache_resource
-def cargar_resumidor():
-
-    resumidor = pipeline(
-        "text-generation",
-        model="google/flan-t5-base"
-    )
-
-    return resumidor
-
-
-resumidor = cargar_resumidor()
-
-# --------------------------------------------------
-# Dividir texto largo
-# --------------------------------------------------
-def dividir_texto(texto, max_palabras=180):
-
-    palabras = texto.split()
-
-    bloques = []
-
-    for i in range(
-        0,
-        len(palabras),
-        max_palabras
-    ):
-
-        bloque = " ".join(
-            palabras[i:i + max_palabras]
-        )
-
-        bloques.append(bloque)
-
-    return bloques
-
-# --------------------------------------------------
-# Resumir texto largo
+# Función resumen extractivo
 # --------------------------------------------------
 def resumir_texto_largo(texto):
 
-    oraciones = texto.replace("?", ".").replace("¿", "").split(".")
+    # Separar oraciones
+    oraciones = (
+        texto
+        .replace("?", ".")
+        .replace("¿", "")
+        .split(".")
+    )
 
+    # Filtrar oraciones muy cortas
     oraciones = [
         o.strip()
         for o in oraciones
@@ -103,42 +69,75 @@ def resumir_texto_largo(texto):
     ]
 
     if len(oraciones) == 0:
-        return "El texto es demasiado corto para generar un resumen."
 
+        return (
+            "El texto es demasiado corto "
+            "para generar un resumen."
+        )
+
+    # Palabras importantes
     palabras_clave = [
-        "importante", "objetivo", "concepto", "ejemplo",
-        "aplicación", "herramientas", "modelo", "datos",
-        "análisis", "machine learning", "python", "r",
-        "procesamiento", "lenguaje natural", "predictivo",
-        "descriptivo", "prescriptivo", "ciencia de datos"
+        "importante",
+        "objetivo",
+        "concepto",
+        "ejemplo",
+        "aplicación",
+        "herramientas",
+        "modelo",
+        "datos",
+        "análisis",
+        "machine learning",
+        "python",
+        "r",
+        "procesamiento",
+        "lenguaje natural",
+        "predictivo",
+        "descriptivo",
+        "prescriptivo"
     ]
 
     puntajes = []
 
+    # Puntuar oraciones
     for oracion in oraciones:
+
         score = 0
+
         texto_oracion = oracion.lower()
 
         for palabra in palabras_clave:
+
             if palabra in texto_oracion:
+
                 score += 1
 
-        score += min(len(oracion.split()) / 20, 2)
+        # Bonus por longitud moderada
+        score += min(
+            len(oracion.split()) / 20,
+            2
+        )
 
-        puntajes.append((score, oracion))
+        puntajes.append(
+            (score, oracion)
+        )
 
+    # Seleccionar mejores oraciones
     mejores = sorted(
         puntajes,
         key=lambda x: x[0],
         reverse=True
     )[:3]
 
-    resumen = ". ".join([o for _, o in mejores]) + "."
+    resumen = (
+        ". ".join(
+            [o for _, o in mejores]
+        ) + "."
+    )
 
     return resumen
 
 # --------------------------------------------------
-# Subir archivo
+# Subida de archivo
 # --------------------------------------------------
 archivo = st.file_uploader(
     "Sube tu audio o video",
@@ -165,6 +164,7 @@ if archivo is not None:
         .lower()
     )
 
+    # Mostrar audio o video
     if extension == "mp4":
 
         st.video(archivo)
@@ -173,6 +173,7 @@ if archivo is not None:
 
         st.audio(archivo)
 
+    # Guardar temporalmente
     with tempfile.NamedTemporaryFile(
         delete=False,
         suffix=f".{extension}"
@@ -182,11 +183,12 @@ if archivo is not None:
 
         ruta_archivo = tmp.name
 
+    # Botón principal
     if st.button("Transcribir y resumir"):
 
-        # ----------------------------
+        # ------------------------------------------
         # Transcripción
-        # ----------------------------
+        # ------------------------------------------
         with st.spinner(
             "Transcribiendo con Whisper..."
         ):
@@ -211,15 +213,15 @@ if archivo is not None:
             mime="text/plain"
         )
 
-        # ----------------------------
+        # ------------------------------------------
         # Resumen
-        # ----------------------------
+        # ------------------------------------------
         with st.spinner(
             "Generando resumen..."
         ):
 
-            resumen = resumir_texto_largo(
-                texto
+            resumen = (
+                resumir_texto_largo(texto)
             )
 
         st.subheader(
